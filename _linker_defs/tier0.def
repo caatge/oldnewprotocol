@@ -1,0 +1,8 @@
+EXPORTS
+	_SpewInfo
+	_SpewMessage
+	_ExitOnFatalAssert
+	ShouldUseNewAssertDialog
+	DoNewAssertDialog
+	Msg
+	Warning

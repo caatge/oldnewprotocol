@@ -1,0 +1,6 @@
+[submodule "silver-bun"]
+	path = silver-bun
+	url = https://github.com/IcePixelx/silver-bun.git
+[submodule "minhook"]
+	path = minhook
+	url = https://github.com/TsudaKageyu/minhook.git

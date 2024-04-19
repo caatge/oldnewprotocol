@@ -1,0 +1,3 @@
+EXPORTS
+CreateInterface=launcher_real.CreateInterface @1
+LauncherMain=launcher_real.LauncherMain @2

@@ -1,0 +1,8 @@
+EXPORTS
+	_Q_strlen
+	Q_strncpy
+	_Q_stricmp
+	Q_strcasecmp
+	Q_snprintf
+	?Q_stristr@@YAPBDPBD0@Z
+	Q_stristr
