@@ -1,14 +1,11 @@
 #include "windows.h"
 #include "netmsg.h"
 #include "MinHook.h"
-#include "icvar.h"
+//#include "icvar.h" // included by shared, apparently
 #include "shared.h"
 #include "silver-bun.h"
 #include "dbg.h"
-#include "regex"
-#include "psapi.h"
-#include <iomanip>
-#include <sstream>
+
 ICvar* g_pCVar = 0;
 
 bool natively32 = false;
@@ -45,30 +42,10 @@ int __fastcall ConnectionStart_BaseClient(void* ecx, void* edx, INetChannel* nc)
     return eaxstate;
 }
 
-/*uint32_t get_build_number() {
-    static const std::regex build_regex{"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s{1,2}\\d{1,2}\\s\\d{4}"};
-    MODULEINFO mi;
-    GetModuleInformation(GetCurrentProcess(), GetModuleHandle("engine.dll"), &mi, sizeof(mi));
-    const char* start = reinterpret_cast<const char*>(mi.lpBaseOfDll);
-    const char* end = reinterpret_cast<const char*>(mi.lpBaseOfDll) + mi.SizeOfImage;
-    std::cmatch match;
-    if (!std::regex_search(start, end, match, build_regex)) return 0;
-    int i = 0;
-    for (const auto& m : match) {
-        std::cout << i << " " << m.str() << "\n";
-        i++;
-    }
-
-    std::tm tm;
-    std::istringstream(match[0].str()) >> std::get_time(&tm, "%b %d %Y");
-    return (std::mktime(&tm) / 3600) - 35739;
-}*/
-
 std::vector <uint8_t> sendtable_patch32 = { 0x6A, 0x20 };
 std::vector <uint8_t> sendtable_patch16 = { 0x6A, 0x10 };
 
 CMemory maxtables_r, maxtables_w;
-
 
 BOOL (__thiscall* oSVC_ServerInfo_WriteToBuffer)(void* this_, bf_write* write);
 
@@ -100,6 +77,7 @@ BOOL __fastcall SVC_ServerInfo_ReadFromBuffer(void* this_, void* edx, bf_read* r
     return eaxstate;
 }
 
+#ifdef EXTERNALCONSOLE
 int __cdecl spewinternalmaybe(int spewtype, char* Format, va_list ArgList);
 
 decltype(spewinternalmaybe)* original;
@@ -110,16 +88,7 @@ int __cdecl spewinternalmaybe(int spewtype, char* Format, va_list ArgList) {
     printf("%s", msg);
     return original(spewtype, Format, ArgList);
 }
-
-
-void dbgstr(const char* fmt, ...) {
-    char buf[2048];
-    va_list va;
-    va_start(va, fmt);
-    vsprintf_s(buf, fmt, va);
-    va_end(va);
-    OutputDebugString(buf);
-}
+#endif
 
 DWORD __stdcall EngineThread(LPVOID doifuckingknow) {
     HMODULE engine_ = GetModuleHandle("engine.dll");
@@ -127,26 +96,16 @@ DWORD __stdcall EngineThread(LPVOID doifuckingknow) {
         engine_ = GetModuleHandle("engine.dll");
         Sleep(100);
     }
+#ifdef EXTERNALCONSOLE
 
-
-
-    CModule engine("engine.dll");
     CModule tier0("tier0.dll");
     auto a = tier0.FindPatternSIMD("B8 ? ? ? ? E8 ? ? ? ? 56");
     MH_CreateHook(a, &spewinternalmaybe, (LPVOID*)&original);
     MH_EnableHook(a);
+#endif
+    CModule engine("engine.dll");
+
     CMemory vSVC_UpdateStringTable = engine.GetVirtualMethodTable(".?AVSVC_UpdateStringTable@@");
-
-
-    /*CModule new_engine(reinterpret_cast<uintptr_t>(LoadLibraryEx("engine2947.dll", NULL, DONT_RESOLVE_DLL_REFERENCES)));
-    CMemory vSVC_Sounds = new_engine.GetVirtualMethodTable(".?AVSVC_Sounds@@");
-    CMemory _SVC_Sounds_ReadFromBuffer = vSVC_Sounds.WalkVTable(4).Deref();
-    CMemory _SVC_Sounds_WriteToBuffer = vSVC_Sounds.WalkVTable(5).Deref();
-
-    auto to_patch = engine.GetVirtualMethodTable(".?AVSVC_Sounds@@");
-    void* a1, * a2;*/
-    //CMemory::HookVirtualMethod(to_patch, _SVC_Sounds_ReadFromBuffer, 4, &a1);
-    //CMemory::HookVirtualMethod(to_patch, _SVC_Sounds_WriteToBuffer, 5, &a1);
     
     CMemory SVC_UpdateStringTable_ReadFromBuffer = vSVC_UpdateStringTable.WalkVTable(4).Deref();
     CMemory SVC_UpdateStringTable_WriteToBuffer = vSVC_UpdateStringTable.WalkVTable(5).Deref();
@@ -198,38 +157,6 @@ DWORD __stdcall EngineThread(LPVOID doifuckingknow) {
         CBaseClient_ConnectionStart = engine.FindPatternSIMD("51 53 56 57 8B F9 6A");
         looks_old = true;
     }
-
-    //if (looks_older) {
-        //vSVC_UpdateStringTable = engine.GetVirtualMethodTable(".?AVSVC_UpdateStringTable@@");
-        //CModule new_engine(reinterpret_cast<uintptr_t>(LoadLibraryEx("engine2947.dll", NULL, DONT_RESOLVE_DLL_REFERENCES)));
-
-        /*CMemory vSVC_UpdateStringTable_new = new_engine.GetVirtualMethodTable(".?AVSVC_UpdateStringTable@@");
-        CMemory _SVC_UpdateStringTable_ReadFromBuffer = vSVC_UpdateStringTable_new.WalkVTable(4).Deref();
-        CMemory _SVC_UpdateStringTable_WriteToBuffer = vSVC_UpdateStringTable_new.WalkVTable(5).Deref();
-
-        //auto to_patch = engine.GetVirtualMethodTable(".?AVSVC_Sounds@@");
-        void* a1, * a2;
-        CMemory::HookVirtualMethod(vSVC_UpdateStringTable, _SVC_UpdateStringTable_ReadFromBuffer, 4, &a1);
-        CMemory::HookVirtualMethod(vSVC_UpdateStringTable, _SVC_UpdateStringTable_WriteToBuffer, 5, &a1);
-
-
-        CModule::ModuleSections_t moduleSection_r(".text", _SVC_UpdateStringTable_ReadFromBuffer.GetPtr(), 160); // from function base to 100 bytes ahead
-        CModule::ModuleSections_t moduleSection_w(".text", _SVC_UpdateStringTable_WriteToBuffer.GetPtr(), 160); // from function base to 100 bytes ahead
-
-        maxtables_r = new_engine.FindPatternSIMD("6A 10", &moduleSection_r); // push 20h
-        maxtables_w = new_engine.FindPatternSIMD("6A 10", &moduleSection_w); // push 20h
-        void* a;
-        MH_CreateHook(reinterpret_cast<LPVOID>(engine.GetModuleBase() + 0xFC600), reinterpret_cast<LPVOID>(new_engine.GetModuleBase() + 0xFEAE0), &a);
-        MH_EnableHook(reinterpret_cast<LPVOID>(engine.GetModuleBase() + 0xFC600));*/
-
-
-    //}
-
-    //TEST
-    //CMemory vCBaseClientState = engine.GetVirtualMethodTable(".?AVCBaseClientState@@");
-    //CMemory vCBaseClient = engine.GetVirtualMethodTable(".?AVCBaseClient@@");
-    //Msg("ccs %p %p\n", vCBaseClientState.WalkVTable(1).Deref(), CBaseClientState_ConnectionStart);
-    //Msg("cc %p %p\n", vCBaseClient.WalkVTable(1).Deref(), CBaseClient_ConnectionStart);
 
     CMemory vSVC_ServerInfo = engine.GetVirtualMethodTable(".?AVSVC_ServerInfo@@");
 
@@ -298,12 +225,14 @@ BOOL WINAPI DllMain(
     if (fdwReason == DLL_PROCESS_ATTACH) {
         DWORD th;
         MH_Initialize();
+#ifdef EXTERNALCONSOLE
         AllocConsole();
         SetConsoleTitleW(L"half life 3");
         FILE* fDummy;
         freopen_s(&fDummy, "CONIN$", "r", stdin);
         freopen_s(&fDummy, "CONOUT$", "w", stderr);
         freopen_s(&fDummy, "CONOUT$", "w", stdout);
+#endif
         CreateThread(0, 0, &EngineThread, 0, 0, &th);
     }
     if (fdwReason == DLL_PROCESS_DETACH) {
