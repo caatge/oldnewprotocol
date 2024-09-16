@@ -119,7 +119,7 @@ DWORD __stdcall EngineThread(LPVOID doifuckingknow) {
     maxtables_w = engine.FindPatternSIMD("B9 08 00 00 00 BB 01 00 00 00 03 C3 D1 F9", &_moduleSection_w);
     if (maxtables_r && maxtables_w) {
         loginlined = true;
-        sendtable_patch32 = { 0xB9, 0x16, 0x0, 0x0 };
+        sendtable_patch32 = { 0xB9, 0x10, 0x0, 0x0 };
         sendtable_patch16 = { 0xB9, 0x8, 0x0, 0x0 };
         Msg("==== log2 inlined?\n");
     }
